@@ -1,13 +1,13 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '@/components/Layout';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { DashboardSkeleton } from '@/components/LoadingSkeleton';
 import EmptyState from '@/components/EmptyState';
 import { useAuth } from '@/hooks/useAuth';
 import { useTodayMeals } from '@/hooks/useMeals';
 import { useDailyGoals } from '@/hooks/useDailyGoals';
 import { formatCalories, formatMacros, formatTime } from '@/utils/formatters';
-import { MEAL_TYPES } from '@/types/database';
+import { MEAL_TYPES_AR } from '@/constants';
 import { deleteMeal } from '@/services/database';
 import toast from 'react-hot-toast';
 
@@ -38,7 +38,7 @@ export default function DashboardPage() {
   if (authLoading || mealsLoading || goalsLoading) {
     return (
       <Layout>
-        <LoadingSpinner />
+        <DashboardSkeleton />
       </Layout>
     );
   }
@@ -186,7 +186,7 @@ export default function DashboardPage() {
             {Object.entries(groupedMeals).map(([type, typeMeals]) => (
               <div key={type} className="space-y-4">
                 <h3 className="text-xl font-semibold text-gray-700">
-                  {MEAL_TYPES[type as keyof typeof MEAL_TYPES]}
+                  {MEAL_TYPES_AR[type as keyof typeof MEAL_TYPES_AR]}
                 </h3>
                 {typeMeals.map((meal) => (
                   <div
