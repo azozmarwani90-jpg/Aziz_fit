@@ -1,10 +1,11 @@
 import '@/styles/globals.css';
 import type { AppProps } from 'next/app';
 import { Toaster } from 'react-hot-toast';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
-    <>
+    <ThemeProvider>
       <Component {...pageProps} />
       <Toaster
         position="top-center"
@@ -13,7 +14,8 @@ export default function App({ Component, pageProps }: AppProps) {
           style: {
             background: '#10B981',
             color: '#fff',
-            fontFamily: 'system-ui, -apple-system, sans-serif',
+            fontFamily: 'Cairo, system-ui, -apple-system, sans-serif',
+            borderRadius: '1rem',
           },
           success: {
             duration: 2000,
@@ -30,6 +32,6 @@ export default function App({ Component, pageProps }: AppProps) {
           },
         }}
       />
-    </>
+    </ThemeProvider>
   );
 }

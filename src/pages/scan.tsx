@@ -1,4 +1,4 @@
-import { useState, useRef, ChangeEvent, useEffect } from 'react';
+import { useState, useRef, ChangeEvent, useEffect, DragEvent } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { insertMeal, insertAiLog } from '@/services/database';
 import { MEAL_TYPES } from '@/types/database';
 import toast from 'react-hot-toast';
+import { Button, Card, PageContainer } from '@/components/ui';
 
 interface MealAnalysisResult {
   name: string;
@@ -26,6 +27,7 @@ export default function ScanPage() {
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<MealAnalysisResult | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -34,10 +36,7 @@ export default function ScanPage() {
     }
   }, [user, authLoading, router]);
 
-  const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processFile = (file: File) => {
     if (!file.type.startsWith('image/')) {
       toast.error('الرجاء اختيار صورة');
       return;
@@ -47,12 +46,37 @@ export default function ScanPage() {
     setResult(null);
     setImageUrl(null);
 
-    // Create preview
     const reader = new FileReader();
     reader.onload = (e) => {
       setPreview(e.target?.result as string);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDrag = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files[0]) {
+      processFile(files[0]);
+    }
   };
 
   const handleAnalyze = async () => {
@@ -64,12 +88,10 @@ export default function ScanPage() {
     setAnalyzing(true);
 
     try {
-      // Create FormData and send file
       const formData = new FormData();
       formData.append('image', selectedFile);
       formData.append('userId', user.id);
 
-      // Call API
       const response = await fetch('/api/analyze-meal', {
         method: 'POST',
         body: formData,
@@ -81,7 +103,6 @@ export default function ScanPage() {
         throw new Error(data.error || 'فشل تحليل الصورة');
       }
 
-      // Store both meal data and image URL from API
       setResult(data.meal);
       setImageUrl(data.image_url);
       toast.success('تم تحليل الوجبة بنجاح!');
@@ -103,7 +124,6 @@ export default function ScanPage() {
     setSaving(true);
 
     try {
-      // Save meal to database with image URL from API
       await insertMeal({
         name: result.name,
         calories: result.calories,
@@ -114,17 +134,13 @@ export default function ScanPage() {
         image_url: imageUrl,
       });
 
-      // Log AI interaction
       await insertAiLog(
         'تحليل صورة وجبة',
         JSON.stringify(result),
         imageUrl
       );
 
-      // Show success message
       toast.success('تم حفظ الوجبة بنجاح!');
-      
-      // Redirect to dashboard immediately
       router.push('/dashboard');
     } catch (error) {
       console.error('Save error:', error);
@@ -154,28 +170,40 @@ export default function ScanPage() {
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-2">
-            تحليل وجبة
-          </h1>
-          <p className="text-gray-600">التقط صورة للوجبة وسنحسب معلوماتها الغذائية</p>
-        </div>
-
+      <PageContainer
+        title="تحليل وجبة"
+        subtitle="التقط صورة للوجبة وسنحسب معلوماتها الغذائية"
+      >
         {/* Upload Section */}
         {!preview && (
-          <div className="card text-center animate-fade-in">
-            <div
+          <div className="max-w-2xl mx-auto animate-fade-in">
+            <Card
+              className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-4xl p-12 text-center cursor-pointer transition-all hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/10"
               onClick={() => fileInputRef.current?.click()}
-              className="border-4 border-dashed border-gray-300 rounded-3xl p-12 cursor-pointer hover:border-emerald-400 transition-colors"
+              hoverable
             >
-              <div className="text-6xl mb-4">📸</div>
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">
-                اختر صورة للوجبة
-              </h3>
-              <p className="text-gray-500 mb-4">انقر لاختيار صورة من جهازك</p>
-              <button className="btn-primary">اختر صورة</button>
-            </div>
+              <div
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                className={`transition-all ${dragActive ? 'scale-105' : ''}`}
+              >
+                <div className="text-6xl mb-4 animate-pulse-subtle">📸</div>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                  اختر صورة للوجبة
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  انقر لاختيار صورة أو اسحبها هنا
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-500 mb-6">
+                  صيغ مدعومة: JPG, PNG, WebP (الحد الأقصى 10MB)
+                </p>
+                <Button variant="primary" size="lg">
+                  اختر صورة
+                </Button>
+              </div>
+            </Card>
             <input
               ref={fileInputRef}
               type="file"
@@ -188,98 +216,118 @@ export default function ScanPage() {
 
         {/* Preview and Analysis Section */}
         {preview && (
-          <div className="space-y-6 animate-fade-in">
-            <div className="card">
-              <img
-                src={preview}
-                alt="Meal preview"
-                className="w-full h-96 object-cover rounded-2xl mb-4"
-              />
-              <div className="flex gap-4">
-                <button
+          <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
+            <Card>
+              <div className="rounded-3xl overflow-hidden mb-6">
+                <img
+                  src={preview}
+                  alt="صورة الوجبة"
+                  className="w-full h-96 object-cover"
+                />
+              </div>
+              <div className="flex gap-3 flex-col sm:flex-row">
+                <Button
                   onClick={handleAnalyze}
                   disabled={analyzing || result !== null}
-                  className="flex-1 btn-primary disabled:opacity-50"
+                  loading={analyzing}
+                  fullWidth
+                  variant="primary"
+                  size="lg"
                 >
-                  {analyzing ? (
-                    <span className="flex items-center justify-center">
-                      <div className="spinner w-5 h-5 ml-2"></div>
-                      جاري التحليل...
-                    </span>
-                  ) : result ? (
-                    'تم التحليل ✓'
-                  ) : (
-                    'تحليل الوجبة'
-                  )}
-                </button>
-                <button onClick={handleReset} className="btn-secondary">
+                  {result ? 'تم التحليل ✓' : 'تحليل الوجبة'}
+                </Button>
+                <Button
+                  onClick={handleReset}
+                  disabled={analyzing}
+                  fullWidth
+                  variant="secondary"
+                  size="lg"
+                >
                   اختر صورة أخرى
-                </button>
+                </Button>
               </div>
-            </div>
+            </Card>
 
             {/* Results Card */}
             {result && (
-              <div className="card animate-fade-in">
-                <h2 className="text-2xl font-bold text-luxury-black mb-6">
+              <Card className="animate-fade-in">
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-8 text-right">
                   نتائج التحليل
                 </h2>
 
-                <div className="space-y-4 mb-6">
-                  <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-                    <span className="text-gray-700 font-medium">اسم الوجبة</span>
-                    <span className="text-lg font-bold text-luxury-black">{result.name}</span>
+                <div className="space-y-4 mb-8">
+                  {/* Meal Name */}
+                  <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl">
+                    <span className="text-gray-700 dark:text-gray-300 font-medium">اسم الوجبة</span>
+                    <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">{result.name}</span>
                   </div>
 
-                  <div className="flex justify-between items-center p-4 bg-emerald-50 rounded-xl">
-                    <span className="text-gray-700 font-medium">السعرات</span>
-                    <span className="text-lg font-bold text-emerald-600">
-                      {result.calories} سعرة
+                  {/* Calories */}
+                  <div className="flex justify-between items-center p-5 rounded-2xl bg-gradient-to-r from-emerald-50 to-emerald-100 dark:from-emerald-900/30 dark:to-emerald-800/30 border-l-4 border-emerald-500">
+                    <div>
+                      <span className="text-gray-700 dark:text-gray-300 font-medium block mb-1">السعرات الحرارية</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Energy</span>
+                    </div>
+                    <span className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                      {result.calories}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center p-4 bg-red-50 rounded-xl">
-                    <span className="text-gray-700 font-medium">البروتين</span>
-                    <span className="text-lg font-bold text-red-600">{result.protein} جم</span>
+                  {/* Macros Grid */}
+                  <div className="grid grid-cols-3 gap-4">
+                    {/* Protein */}
+                    <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-900/30 text-center border border-red-200 dark:border-red-800">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 font-medium">البروتين</p>
+                      <p className="text-2xl font-bold text-red-600 dark:text-red-400">{result.protein}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">جرام</p>
+                    </div>
+
+                    {/* Carbs */}
+                    <div className="p-4 rounded-2xl bg-yellow-50 dark:bg-yellow-900/30 text-center border border-yellow-200 dark:border-yellow-800">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 font-medium">الكربوهيدرات</p>
+                      <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{result.carbs}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">جرام</p>
+                    </div>
+
+                    {/* Fat */}
+                    <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-center border border-blue-200 dark:border-blue-800">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 font-medium">الدهون</p>
+                      <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{result.fat}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">جرام</p>
+                    </div>
                   </div>
 
-                  <div className="flex justify-between items-center p-4 bg-yellow-50 rounded-xl">
-                    <span className="text-gray-700 font-medium">الكربوهيدرات</span>
-                    <span className="text-lg font-bold text-yellow-600">{result.carbs} جم</span>
-                  </div>
-
-                  <div className="flex justify-between items-center p-4 bg-blue-50 rounded-xl">
-                    <span className="text-gray-700 font-medium">الدهون</span>
-                    <span className="text-lg font-bold text-blue-600">{result.fat} جم</span>
-                  </div>
-
-                  <div className="flex justify-between items-center p-4 bg-purple-50 rounded-xl">
-                    <span className="text-gray-700 font-medium">نوع الوجبة</span>
-                    <span className="text-lg font-bold text-purple-600">
+                  {/* Meal Type */}
+                  <div className="flex justify-between items-center p-4 bg-purple-50 dark:bg-purple-900/30 rounded-2xl border border-purple-200 dark:border-purple-800">
+                    <span className="text-gray-700 dark:text-gray-300 font-medium">نوع الوجبة</span>
+                    <span className="text-lg font-bold text-purple-600 dark:text-purple-400">
                       {MEAL_TYPES[result.meal_type as keyof typeof MEAL_TYPES]}
                     </span>
                   </div>
+
+                  {/* Description */}
+                  {result.description && (
+                    <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 text-right">{result.description}</p>
+                    </div>
+                  )}
                 </div>
 
-                <button
+                <Button
                   onClick={handleSave}
                   disabled={saving}
-                  className="w-full btn-primary disabled:opacity-50"
+                  loading={saving}
+                  fullWidth
+                  variant="primary"
+                  size="lg"
                 >
-                  {saving ? (
-                    <span className="flex items-center justify-center">
-                      <div className="spinner w-5 h-5 ml-2"></div>
-                      جاري الحفظ...
-                    </span>
-                  ) : (
-                    'حفظ الوجبة'
-                  )}
-                </button>
-              </div>
+                  حفظ الوجبة
+                </Button>
+              </Card>
             )}
           </div>
         )}
-      </div>
+      </PageContainer>
     </Layout>
   );
 }

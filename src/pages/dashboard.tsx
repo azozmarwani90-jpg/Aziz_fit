@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -10,12 +10,17 @@ import { formatCalories, formatMacros, formatTime } from '@/utils/formatters';
 import { MEAL_TYPES } from '@/types/database';
 import { deleteMeal } from '@/services/database';
 import toast from 'react-hot-toast';
+import { Button, Card, PageContainer, InputField, MealCard } from '@/components/ui';
+
+type FilterType = 'all' | 'today' | 'week' | 'month';
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { meals, totals, loading: mealsLoading, refetch } = useTodayMeals();
   const { goals, loading: goalsLoading } = useDailyGoals();
+  const [filterType, setFilterType] = useState<FilterType>('today');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -35,6 +40,60 @@ export default function DashboardPage() {
     }
   };
 
+  const filterMeals = useMemo(() => {
+    let filtered = meals;
+
+    // Filter by date
+    const now = new Date();
+    const filterDate = new Date(now);
+
+    if (filterType === 'week') {
+      filterDate.setDate(filterDate.getDate() - 7);
+    } else if (filterType === 'month') {
+      filterDate.setMonth(filterDate.getMonth() - 1);
+    }
+
+    if (filterType !== 'all') {
+      filtered = filtered.filter((meal) => new Date(meal.created_at) >= filterDate);
+    }
+
+    // Filter by search query
+    if (searchQuery) {
+      filtered = filtered.filter((meal) =>
+        meal.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    return filtered;
+  }, [meals, filterType, searchQuery]);
+
+  // Group meals by type
+  const groupedMeals = filterMeals.reduce((acc, meal) => {
+    if (!acc[meal.meal_type]) {
+      acc[meal.meal_type] = [];
+    }
+    acc[meal.meal_type].push(meal);
+    return acc;
+  }, {} as Record<string, typeof filterMeals>);
+
+  // Calculate streak (consecutive days with meals)
+  const calculateStreak = () => {
+    if (meals.length === 0) return 0;
+    const uniqueDates = new Set(meals.map((m) => new Date(m.created_at).toDateString()));
+    let streak = 0;
+    const today = new Date();
+    for (let i = 0; i < 365; i++) {
+      const checkDate = new Date(today);
+      checkDate.setDate(checkDate.getDate() - i);
+      if (uniqueDates.has(checkDate.toDateString())) {
+        streak++;
+      } else if (i > 0) {
+        break;
+      }
+    }
+    return streak;
+  };
+
   if (authLoading || mealsLoading || goalsLoading) {
     return (
       <Layout>
@@ -50,127 +109,207 @@ export default function DashboardPage() {
 
   const caloriesProgress = caloriesGoal > 0 ? (totals.calories / caloriesGoal) * 100 : 0;
   const remaining = caloriesGoal - totals.calories;
-
-  // Group meals by type
-  const groupedMeals = meals.reduce((acc, meal) => {
-    if (!acc[meal.meal_type]) {
-      acc[meal.meal_type] = [];
-    }
-    acc[meal.meal_type].push(meal);
-    return acc;
-  }, {} as Record<string, typeof meals>);
+  const streak = calculateStreak();
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <PageContainer title="لوحة التحكم" subtitle="تتبع سعراتك وأهدافك الغذائية">
         {/* Daily Summary Card */}
-        <div className="card bg-gradient-primary text-white mb-8 animate-fade-in">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">السعرات اليومية</h2>
-            <div className="bg-white/20 p-3 rounded-2xl">
-              <span className="text-3xl">🔥</span>
+        <div className="mb-8 animate-fade-in">
+          <Card className="bg-gradient-to-br from-emerald-500 via-teal-500 to-emerald-600 text-white">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-3xl font-bold">السعرات اليومية</h2>
+                <p className="text-emerald-100 mt-1">جدول طعامك اليوم</p>
+              </div>
+              <div className="text-6xl">🔥</div>
             </div>
-          </div>
 
-          <div className="mb-6">
-            <div className="flex items-baseline mb-2">
-              <span className="text-5xl font-bold">{formatCalories(totals.calories)}</span>
+            <div className="mb-8">
+              <div className="flex items-baseline mb-3">
+                <span className="text-6xl font-bold">{formatCalories(totals.calories)}</span>
+                {caloriesGoal > 0 && (
+                  <span className="text-2xl ml-3 opacity-80">/ {formatCalories(caloriesGoal)}</span>
+                )}
+              </div>
+
               {caloriesGoal > 0 && (
-                <span className="text-xl mr-2 opacity-80">/ {formatCalories(caloriesGoal)}</span>
+                <>
+                  <div className="w-full bg-white/25 rounded-full h-3 mb-4">
+                    <div
+                      className="bg-gradient-to-r from-yellow-300 to-yellow-500 h-3 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(caloriesProgress, 100)}%` }}
+                    ></div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="opacity-80">متبقي</p>
+                      <p className="font-bold text-lg">{formatCalories(Math.max(remaining, 0))}</p>
+                    </div>
+                    <div>
+                      <p className="opacity-80">نسبة التقدم</p>
+                      <p className="font-bold text-lg">{Math.round(caloriesProgress)}%</p>
+                    </div>
+                    <div>
+                      <p className="opacity-80">السلسلة</p>
+                      <p className="font-bold text-lg">{streak} 🔥</p>
+                    </div>
+                  </div>
+                </>
+              )}
+              {caloriesGoal === 0 && (
+                <p className="text-lg opacity-90">لم يتم تحديد الأهداف بعد</p>
               )}
             </div>
-
-            {caloriesGoal > 0 && (
-              <>
-                <div className="w-full bg-white/25 rounded-full h-3 mb-3">
-                  <div
-                    className="bg-gradient-gold h-3 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(caloriesProgress, 100)}%` }}
-                  ></div>
-                </div>
-                <p className="text-lg opacity-90">
-                  متبقي: {formatCalories(Math.max(remaining, 0))} سعرة
-                </p>
-              </>
-            )}
-            {caloriesGoal === 0 && (
-              <p className="text-lg opacity-90">لم يتم تحديد الأهداف بعد</p>
-            )}
-          </div>
+          </Card>
         </div>
 
-        {/* Macros Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Macros Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 animate-fade-in">
           {/* Protein */}
-          <div className="card animate-fade-in">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-red-100 p-3 rounded-2xl">
-                <span className="text-2xl">💪</span>
-              </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold text-luxury-black">
-                  {formatMacros(totals.protein)}
-                </p>
-                {proteinGoal > 0 && (
-                  <p className="text-sm text-gray-600">/ {formatMacros(proteinGoal)} جم</p>
-                )}
+          <Card>
+            <div className="flex items-center gap-4">
+              <div className="text-4xl">💪</div>
+              <div className="flex-1">
+                <p className="text-gray-600 dark:text-gray-400 text-sm">البروتين</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-3xl font-bold text-red-600 dark:text-red-400">
+                    {formatMacros(totals.protein)}
+                  </p>
+                  {proteinGoal > 0 && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">/ {formatMacros(proteinGoal)} جم</p>
+                  )}
+                </div>
               </div>
             </div>
-            <p className="text-gray-600 font-medium">البروتين</p>
-          </div>
+            {proteinGoal > 0 && (
+              <div className="mt-3 bg-gray-100 dark:bg-gray-800 rounded-full h-2">
+                <div
+                  className="bg-red-500 h-2 rounded-full transition-all"
+                  style={{ width: `${Math.min((totals.protein / proteinGoal) * 100, 100)}%` }}
+                />
+              </div>
+            )}
+          </Card>
 
           {/* Carbs */}
-          <div className="card animate-fade-in">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-gold/20 p-3 rounded-2xl">
-                <span className="text-2xl">🌾</span>
-              </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold text-luxury-black">
-                  {formatMacros(totals.carbs)}
-                </p>
-                {carbsGoal > 0 && (
-                  <p className="text-sm text-gray-600">/ {formatMacros(carbsGoal)} جم</p>
-                )}
+          <Card>
+            <div className="flex items-center gap-4">
+              <div className="text-4xl">🌾</div>
+              <div className="flex-1">
+                <p className="text-gray-600 dark:text-gray-400 text-sm">الكربوهيدرات</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
+                    {formatMacros(totals.carbs)}
+                  </p>
+                  {carbsGoal > 0 && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">/ {formatMacros(carbsGoal)} جم</p>
+                  )}
+                </div>
               </div>
             </div>
-            <p className="text-gray-600 font-medium">الكربوهيدرات</p>
-          </div>
+            {carbsGoal > 0 && (
+              <div className="mt-3 bg-gray-100 dark:bg-gray-800 rounded-full h-2">
+                <div
+                  className="bg-yellow-500 h-2 rounded-full transition-all"
+                  style={{ width: `${Math.min((totals.carbs / carbsGoal) * 100, 100)}%` }}
+                />
+              </div>
+            )}
+          </Card>
 
           {/* Fats */}
-          <div className="card animate-fade-in">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-blue-100 p-3 rounded-2xl">
-                <span className="text-2xl">💧</span>
-              </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold text-luxury-black">
-                  {formatMacros(totals.fat)}
-                </p>
-                {fatsGoal > 0 && (
-                  <p className="text-sm text-gray-600">/ {formatMacros(fatsGoal)} جم</p>
-                )}
+          <Card>
+            <div className="flex items-center gap-4">
+              <div className="text-4xl">💧</div>
+              <div className="flex-1">
+                <p className="text-gray-600 dark:text-gray-400 text-sm">الدهون</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                    {formatMacros(totals.fat)}
+                  </p>
+                  {fatsGoal > 0 && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">/ {formatMacros(fatsGoal)} جم</p>
+                  )}
+                </div>
               </div>
             </div>
-            <p className="text-gray-600 font-medium">الدهون</p>
-          </div>
+            {fatsGoal > 0 && (
+              <div className="mt-3 bg-gray-100 dark:bg-gray-800 rounded-full h-2">
+                <div
+                  className="bg-blue-500 h-2 rounded-full transition-all"
+                  style={{ width: `${Math.min((totals.fat / fatsGoal) * 100, 100)}%` }}
+                />
+              </div>
+            )}
+          </Card>
         </div>
 
-        {/* Scan Button */}
-        <div className="text-center mb-8">
-          <button
+        {/* Action Buttons */}
+        <div className="flex gap-3 mb-8 flex-col sm:flex-row">
+          <Button
             onClick={() => router.push('/scan')}
-            className="btn-primary text-lg px-8 py-4"
+            variant="primary"
+            size="lg"
+            fullWidth
           >
-            <span className="text-2xl ml-2">📸</span>
-            تحليل وجبة جديدة
-          </button>
+            📸 تحليل وجبة جديدة
+          </Button>
+          <Button
+            onClick={() => router.push('/profile')}
+            variant="secondary"
+            size="lg"
+            fullWidth
+          >
+            ⚙️ تحديث الأهداف
+          </Button>
         </div>
+
+        {/* Filter and Search */}
+        <Card className="mb-8">
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">البحث والتصفية</h3>
+
+            {/* Search Box */}
+            <InputField
+              placeholder="ابحث عن وجبة..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+
+            {/* Filter Buttons */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {(['today', 'week', 'month', 'all'] as FilterType[]).map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setFilterType(filter)}
+                  className={`py-2 px-4 rounded-xl font-semibold transition-all ${
+                    filterType === filter
+                      ? 'bg-emerald-500 text-white shadow-lg'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {filter === 'today'
+                    ? 'اليوم'
+                    : filter === 'week'
+                    ? 'هذا الأسبوع'
+                    : filter === 'month'
+                    ? 'هذا الشهر'
+                    : 'الكل'}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Card>
 
         {/* Meals List */}
-        {meals.length === 0 ? (
+        {filterMeals.length === 0 ? (
           <EmptyState
-            message="لم تقم بإضافة أي وجبات اليوم"
+            message={
+              searchQuery
+                ? `لم يتم العثور على وجبات تطابق "${searchQuery}"`
+                : 'لم تقم بإضافة أي وجبات'
+            }
             action={{
               label: 'إضافة وجبة',
               onClick: () => router.push('/scan'),
@@ -178,74 +317,46 @@ export default function DashboardPage() {
           />
         ) : (
           <div className="space-y-8">
-            <h2 className="text-2xl font-bold text-luxury-black flex items-center">
-              <div className="w-1 h-8 bg-gradient-primary rounded-full ml-3"></div>
-              الوجبات
-            </h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">الوجبات</h2>
 
             {Object.entries(groupedMeals).map(([type, typeMeals]) => (
               <div key={type} className="space-y-4">
-                <h3 className="text-xl font-semibold text-gray-700">
+                <h3 className="text-lg font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                  <span className="text-2xl">
+                    {type === 'breakfast'
+                      ? '🌅'
+                      : type === 'lunch'
+                      ? '🍽️'
+                      : type === 'dinner'
+                      ? '🌙'
+                      : '🍪'}
+                  </span>
                   {MEAL_TYPES[type as keyof typeof MEAL_TYPES]}
                 </h3>
-                {typeMeals.map((meal) => (
-                  <div
-                    key={meal.id}
-                    className="card hover:shadow-premium cursor-pointer transition-all"
-                    onClick={() => router.push(`/meals/${meal.id}`)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center flex-1">
-                        {meal.image_url ? (
-                          <img
-                            src={meal.image_url}
-                            alt={meal.name}
-                            className="w-20 h-20 rounded-2xl object-cover ml-4"
-                          />
-                        ) : (
-                          <div className="w-20 h-20 rounded-2xl bg-emerald-100 flex items-center justify-center ml-4">
-                            <span className="text-3xl">🍽️</span>
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <h4 className="text-lg font-semibold text-luxury-black mb-1">
-                            {meal.name}
-                          </h4>
-                          <div className="inline-block bg-gradient-primary text-white px-3 py-1 rounded-lg text-sm font-medium mb-1">
-                            {formatCalories(meal.calories)} سعرة
-                          </div>
-                          <p className="text-sm text-gray-500">{formatTime(meal.created_at)}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteMeal(meal.id);
-                        }}
-                        className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors"
-                      >
-                        <svg
-                          className="w-6 h-6"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                <div className="space-y-3">
+                  {typeMeals.map((meal) => (
+                    <MealCard
+                      key={meal.id}
+                      id={meal.id}
+                      name={meal.name}
+                      calories={meal.calories}
+                      protein={meal.protein}
+                      carbs={meal.carbs}
+                      fat={meal.fat}
+                      mealType={meal.meal_type}
+                      mealTypeLabel={MEAL_TYPES[meal.meal_type as keyof typeof MEAL_TYPES]}
+                      imageUrl={meal.image_url}
+                      createdAt={meal.created_at}
+                      onDelete={() => handleDeleteMeal(meal.id)}
+                      onView={() => router.push(`/meals/${meal.id}`)}
+                    />
+                  ))}
+                </div>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </PageContainer>
     </Layout>
   );
 }
