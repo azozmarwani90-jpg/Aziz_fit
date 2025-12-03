@@ -5,6 +5,7 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { insertMeal, insertAiLog } from '@/services/database';
 import { MEAL_TYPES_AR, MAX_FILE_SIZE, ALLOWED_FILE_TYPES } from '@/constants';
+import { MEAL_TYPES } from '@/types/database';
 import toast from 'react-hot-toast';
 import { Button, Card, PageContainer } from '@/components/ui';
 
@@ -264,7 +265,6 @@ export default function ScanPage() {
                   نتائج التحليل
                 </h2>
 
-<<<<<<< HEAD
                 <div className="space-y-4 mb-8">
                   {/* Meal Name */}
                   <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl">
@@ -296,7 +296,7 @@ export default function ScanPage() {
                     <div className="p-4 rounded-2xl bg-yellow-50 dark:bg-yellow-900/30 text-center border border-yellow-200 dark:border-yellow-800">
                       <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 font-medium">الكربوهيدرات</p>
                       <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{result.carbs}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">جرام</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1\">جرام</p>
                     </div>
 
                     {/* Fat */}
@@ -313,87 +313,6 @@ export default function ScanPage() {
                     <span className="text-lg font-bold text-purple-600 dark:text-purple-400">
                       {MEAL_TYPES[result.meal_type as keyof typeof MEAL_TYPES]}
                     </span>
-=======
-                <div className="space-y-4 mb-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
-                      اسم الوجبة
-                    </label>
-                    <input
-                      type="text"
-                      value={result.name}
-                      onChange={(e) => setResult({ ...result, name: e.target.value })}
-                      className="input-field"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
-                        السعرات
-                      </label>
-                      <input
-                        type="number"
-                        value={result.calories}
-                        onChange={(e) => setResult({ ...result, calories: Number(e.target.value) })}
-                        className="input-field"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
-                        نوع الوجبة
-                      </label>
-                      <select
-                        value={result.meal_type}
-                        onChange={(e) => setResult({ ...result, meal_type: e.target.value })}
-                        className="input-field"
-                      >
-                        <option value="breakfast">فطور</option>
-                        <option value="lunch">غداء</option>
-                        <option value="dinner">عشاء</option>
-                        <option value="snack">وجبة خفيفة</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
-                        البروتين (جم)
-                      </label>
-                      <input
-                        type="number"
-                        value={result.protein}
-                        onChange={(e) => setResult({ ...result, protein: Number(e.target.value) })}
-                        className="input-field"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
-                        الكربوهيدرات (جم)
-                      </label>
-                      <input
-                        type="number"
-                        value={result.carbs}
-                        onChange={(e) => setResult({ ...result, carbs: Number(e.target.value) })}
-                        className="input-field"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
-                        الدهون (جم)
-                      </label>
-                      <input
-                        type="number"
-                        value={result.fat}
-                        onChange={(e) => setResult({ ...result, fat: Number(e.target.value) })}
-                        className="input-field"
-                      />
-                    </div>
->>>>>>> 443e39747ebd090858d894fe22cf777ed3e0b662
                   </div>
 
                   {/* Description */}

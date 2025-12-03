@@ -8,6 +8,7 @@ import { useTodayMeals } from '@/hooks/useMeals';
 import { useDailyGoals } from '@/hooks/useDailyGoals';
 import { formatCalories, formatMacros, formatTime } from '@/utils/formatters';
 import { MEAL_TYPES_AR } from '@/constants';
+import { MEAL_TYPES } from '@/types/database';
 import { deleteMeal } from '@/services/database';
 import toast from 'react-hot-toast';
 import { Button, Card, PageContainer, InputField, MealCard } from '@/components/ui';
@@ -321,7 +322,6 @@ export default function DashboardPage() {
 
             {Object.entries(groupedMeals).map(([type, typeMeals]) => (
               <div key={type} className="space-y-4">
-<<<<<<< HEAD
                 <h3 className="text-lg font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
                   <span className="text-2xl">
                     {type === 'breakfast'
@@ -332,11 +332,7 @@ export default function DashboardPage() {
                       ? '🌙'
                       : '🍪'}
                   </span>
-                  {MEAL_TYPES[type as keyof typeof MEAL_TYPES]}
-=======
-                <h3 className="text-xl font-semibold text-gray-700">
                   {MEAL_TYPES_AR[type as keyof typeof MEAL_TYPES_AR]}
->>>>>>> 443e39747ebd090858d894fe22cf777ed3e0b662
                 </h3>
                 <div className="space-y-3">
                   {typeMeals.map((meal) => (
