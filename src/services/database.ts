@@ -24,6 +24,28 @@ export const getMealsForDay = async (date: Date): Promise<Meal[]> => {
   return data || [];
 };
 
+export const getMealsForDateRange = async (startDate: Date, endDate: Date): Promise<Meal[]> => {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(endDate);
+  end.setHours(23, 59, 59, 999);
+
+  const { data, error } = await supabase
+    .from('meals')
+    .select('*')
+    .eq('user_id', user.id)
+    .gte('created_at', start.toISOString())
+    .lte('created_at', end.toISOString())
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+};
+
 export const getMealById = async (id: string): Promise<Meal | null> => {
   const { data, error } = await supabase
     .from('meals')
@@ -188,6 +210,24 @@ export const getWeightEntries = async (): Promise<WeightEntry[]> => {
 
   if (error) throw error;
   return data || [];
+};
+
+export const insertWeightEntry = async (weight: number, date: Date): Promise<WeightEntry> => {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('weight_entries')
+    .insert({
+      user_id: user.id,
+      weight,
+      date: date.toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 };
 
 // AI LOGS

@@ -84,6 +84,26 @@ export default function Layout({ children }: LayoutProps) {
                   الرئيسية
                 </button>
                 <button
+                  onClick={() => router.push('/history')}
+                  className={`px-4 py-2 rounded-xl font-medium transition-colors ${
+                    router.pathname === '/history'
+                      ? 'bg-emerald-100 text-emerald-600'
+                      : 'text-gray-600 hover:text-emerald-600'
+                  }`}
+                >
+                  السجل
+                </button>
+                <button
+                  onClick={() => router.push('/stats')}
+                  className={`px-4 py-2 rounded-xl font-medium transition-colors ${
+                    router.pathname === '/stats'
+                      ? 'bg-emerald-100 text-emerald-600'
+                      : 'text-gray-600 hover:text-emerald-600'
+                  }`}
+                >
+                  الإحصائيات
+                </button>
+                <button
                   onClick={() => router.push('/scan')}
                   className={`px-4 py-2 rounded-2xl font-semibold transition-all ${
                     router.pathname === '/scan'

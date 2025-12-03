@@ -4,7 +4,7 @@ import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { insertMeal, insertAiLog } from '@/services/database';
-import { MEAL_TYPES } from '@/types/database';
+import { MEAL_TYPES_AR, MAX_FILE_SIZE, ALLOWED_FILE_TYPES } from '@/constants';
 import toast from 'react-hot-toast';
 import { Button, Card, PageContainer } from '@/components/ui';
 
@@ -39,6 +39,16 @@ export default function ScanPage() {
   const processFile = (file: File) => {
     if (!file.type.startsWith('image/')) {
       toast.error('الرجاء اختيار صورة');
+      return;
+    }
+
+    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+      toast.error('نوع الملف غير مدعوم. الرجاء اختيار JPG أو PNG');
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error('حجم الملف كبير جداً. الحد الأقصى 10 ميجابايت');
       return;
     }
 
@@ -248,13 +258,13 @@ export default function ScanPage() {
               </div>
             </Card>
 
-            {/* Results Card */}
             {result && (
               <Card className="animate-fade-in">
                 <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-8 text-right">
                   نتائج التحليل
                 </h2>
 
+<<<<<<< HEAD
                 <div className="space-y-4 mb-8">
                   {/* Meal Name */}
                   <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl">
@@ -303,6 +313,87 @@ export default function ScanPage() {
                     <span className="text-lg font-bold text-purple-600 dark:text-purple-400">
                       {MEAL_TYPES[result.meal_type as keyof typeof MEAL_TYPES]}
                     </span>
+=======
+                <div className="space-y-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                      اسم الوجبة
+                    </label>
+                    <input
+                      type="text"
+                      value={result.name}
+                      onChange={(e) => setResult({ ...result, name: e.target.value })}
+                      className="input-field"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                        السعرات
+                      </label>
+                      <input
+                        type="number"
+                        value={result.calories}
+                        onChange={(e) => setResult({ ...result, calories: Number(e.target.value) })}
+                        className="input-field"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                        نوع الوجبة
+                      </label>
+                      <select
+                        value={result.meal_type}
+                        onChange={(e) => setResult({ ...result, meal_type: e.target.value })}
+                        className="input-field"
+                      >
+                        <option value="breakfast">فطور</option>
+                        <option value="lunch">غداء</option>
+                        <option value="dinner">عشاء</option>
+                        <option value="snack">وجبة خفيفة</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                        البروتين (جم)
+                      </label>
+                      <input
+                        type="number"
+                        value={result.protein}
+                        onChange={(e) => setResult({ ...result, protein: Number(e.target.value) })}
+                        className="input-field"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                        الكربوهيدرات (جم)
+                      </label>
+                      <input
+                        type="number"
+                        value={result.carbs}
+                        onChange={(e) => setResult({ ...result, carbs: Number(e.target.value) })}
+                        className="input-field"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                        الدهون (جم)
+                      </label>
+                      <input
+                        type="number"
+                        value={result.fat}
+                        onChange={(e) => setResult({ ...result, fat: Number(e.target.value) })}
+                        className="input-field"
+                      />
+                    </div>
+>>>>>>> 443e39747ebd090858d894fe22cf777ed3e0b662
                   </div>
 
                   {/* Description */}
